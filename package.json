@@ -1,0 +1,28 @@
+{
+  "name": "shadow-treasurer",
+  "version": "1.0.0",
+  "description": "A multi-currency treasury agent on Airwallex that earns the right to move money without a human.",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/server.ts",
+    "dev": "node --env-file-if-exists=.env --watch src/server.ts",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc -p .",
+    "gauntlet": "node src/gauntlet/cli.ts",
+    "demo:cli": "node scripts/smoke.ts",
+    "spike": "node --env-file-if-exists=.env scripts/sandbox-spike.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
+    "zod": "^4.6.7"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "^5.9.3"
+  }
+}

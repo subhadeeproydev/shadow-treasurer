@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Shadow Treasurer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M16 4a12 12 0 0 0 0 24z" fill="currentColor"/></svg>
+      <div>
+        <h1>Shadow Treasurer</h1>
+        <p class="tag">Earns the right to move money. We decide. Airwallex enforces. Nothing counts until it reconciles.</p>
+      </div>
+    </div>
+    <div class="badges">
+      <span id="modeBadge" class="badge">…</span>
+      <span id="claudeBadge" class="badge">…</span>
+      <button id="resetBtn" class="ghost">Reset demo</button>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section class="card span-4 meter-card">
+      <h2>Autonomy</h2>
+      <div class="meter">
+        <svg viewBox="0 0 200 120" class="gauge" aria-hidden="true">
+          <path d="M20 110 A80 80 0 0 1 180 110" class="gauge-track"/>
+          <path id="gaugeFill" d="M20 110 A80 80 0 0 1 180 110" class="gauge-fill"/>
+        </svg>
+        <div class="meter-label"><div id="levelName" class="level">L0 Shadow</div><div id="levelSub" class="muted small"></div></div>
+      </div>
+      <div class="levels">
+        <div data-l="0"><b>L0 Shadow</b><span>proposes · nothing moves</span></div>
+        <div data-l="1"><b>L1 Assist</b><span>small payments to known payees</span></div>
+        <div data-l="2"><b>L2 Bounded</b><span>anything inside the envelope</span></div>
+      </div>
+      <dl class="kv">
+        <div><dt>Envelope</dt><dd id="envelope">–</dd></div>
+        <div><dt>Forecast confidence</dt><dd id="confidence">–</dd></div>
+        <div><dt>Clean reconciled cycles</dt><dd id="clean">–</dd></div>
+        <div><dt>Shadow proposals matched</dt><dd id="shadow">–</dd></div>
+      </dl>
+      <p class="formula small muted">envelope = mandate cap × confidence × track record</p>
+      <p id="demotion" class="demotion small"></p>
+    </section>
+
+    <section class="card span-8">
+      <div class="row-between"><h2>Demo · goal → plan → new information → revised decision → result</h2></div>
+      <div id="steps" class="steps"></div>
+      <p id="narration" class="narration"></p>
+      <div id="latest" class="latest"></div>
+      <div class="row gap">
+        <button id="cycleBtn" class="ghost">Run one cycle</button>
+        <span id="busy" class="muted small"></span>
+      </div>
+    </section>
+
+    <section class="card span-5">
+      <h2>Balances</h2>
+      <div id="balances" class="balances"></div>
+      <div class="floorbar"><div id="floorFill"></div><span id="floorMark"></span></div>
+      <p id="floorText" class="small muted"></p>
+    </section>
+
+    <section class="card span-7">
+      <h2>Mandate <span id="mandateVer" class="muted small"></span></h2>
+      <p id="goal" class="goal"></p>
+      <dl id="mandate" class="kv cols"></dl>
+    </section>
+
+    <section class="card span-12">
+      <h2>Approval inbox <span class="muted small">each approval is bound to amount, currency, payee, FX quote and evidence hash, and expires with the quote</span></h2>
+      <div id="approvals" class="approvals"></div>
+    </section>
+
+    <section class="card span-7">
+      <h2>Obligations</h2>
+      <table class="tbl"><thead><tr><th>Payee</th><th>Amount</th><th>Due</th><th>Status</th></tr></thead><tbody id="obligations"></tbody></table>
+      <h3>Expected inflows</h3>
+      <table class="tbl"><thead><tr><th>Payer</th><th>Amount</th><th>Expected</th><th>p(on time)</th></tr></thead><tbody id="inflows"></tbody></table>
+    </section>
+
+    <section class="card span-5">
+      <h2>Evidence <span class="muted small">untrusted · read by Claude, no money tools</span></h2>
+      <div id="evidence" class="evidence"></div>
+      <details class="try">
+        <summary>Send your own email to the agent</summary>
+        <form id="evForm">
+          <input name="from" placeholder="From (e.g. Muller Components <ar@muller.de>)" required />
+          <input name="subject" placeholder="Subject" required />
+          <textarea name="body" rows="4" placeholder="Try: new bank details, a late payment, or an instruction to the AI…" required></textarea>
+          <button type="submit">Ingest + re-plan</button>
+        </form>
+      </details>
+    </section>
+
+    <section class="card span-7">
+      <h2>Decisions <span class="muted small">deterministic policy engine · code, not the model</span></h2>
+      <div id="decisions" class="decisions"></div>
+    </section>
+
+    <section class="card span-5">
+      <h2>Reconciliation <span class="muted small">done = settled + matched in financial transactions</span></h2>
+      <div id="recon" class="recon"></div>
+    </section>
+
+    <section class="card span-12">
+      <div class="row-between">
+        <h2>Treasury Gauntlet <span class="muted small">seeded chaos scenarios against the real engine</span></h2>
+        <button id="gauntletBtn">Run 50 scenarios</button>
+      </div>
+      <div id="gauntlet" class="gauntlet muted">Deposit misses, failed transfers, lost responses, prompt injection, bank-detail changes, FX spikes and double-fired cycles, checked against published pass criteria.</div>
+    </section>
+
+    <section class="card span-12">
+      <h2>Audit trail <span class="muted small">every decision → evidence, rule, request_id and Airwallex IDs</span></h2>
+      <div id="audit" class="audit"></div>
+    </section>
+  </main>
+
+  <footer class="foot muted small">Shadow Protocol · Airwallex Agentic Banking Hackathon · Track 01 Adaptive Treasury Controller · sandbox only, no real money</footer>
+  <script src="/app.js" type="module"></script>
+</body>
+</html>
