@@ -1,12 +1,16 @@
 // Approvals are bound to exact terms. Change one cent, the payee, the quote or the evidence and the
 // approval no longer verifies. They expire with the FX quote.
 import type { ApprovalBinding, ApprovalRequest, Decision } from '../domain/types.ts';
+import { randomBytes } from 'node:crypto';
 import { sha256 } from '../domain/hash.ts';
+
+/** Per-process secret so binding hashes cannot be computed from public data. */
+const BINDING_SALT = randomBytes(32).toString('hex');
 
 export const APPROVAL_TTL_MS = 15 * 60_000;
 
 export const bindingHash = (approvalId: string, binding: ApprovalBinding): string =>
-  sha256({ approvalId, ...binding });
+  sha256({ approvalId, salt: BINDING_SALT, ...binding });
 
 export const createApproval = (
   decision: Decision,

@@ -131,7 +131,7 @@ export class Treasurer {
     const domain = norm((from.match(/@([^>\s]+)/)?.[1] ?? '').split('.')[0] ?? '');
     return this.beneficiaries.find((b) => {
       const n = norm(b.name);
-      return (c && (n.includes(c) || c.includes(n.slice(0, 8)))) || (domain.length > 3 && n.includes(domain));
+      return (c.length >= 4 && (n.includes(c) || c.includes(n.slice(0, 8)))) || (domain.length > 3 && n.includes(domain));
     });
   }
 
@@ -172,7 +172,10 @@ export class Treasurer {
         dueAt: new Date(this.now().getTime() + 12 * 3_600_000).toISOString(), description: `${beneficiary.name} invoice (from email)`,
         status: 'open', source: 'evidence', attempts: 0, bankDetailsChanged: this.flagged.has(beneficiary.id),
       };
-      if (!this.obligations.some((o) => o.id === obligation.id)) this.obligations = [...this.obligations, obligation];
+      const duplicate = this.obligations.some((o) => o.id === obligation.id || (o.beneficiaryId === obligation.beneficiaryId
+        && o.currency === obligation.currency && o.amount === obligation.amount && o.status !== 'blocked'));
+      if (duplicate) this.log('evidence', `Ignored duplicate invoice from ${beneficiary.name} for ${obligation.currency} ${obligation.amount.toLocaleString('en-US')}: an obligation with the same payee and amount already exists.`, { evidence: doc.id });
+      else this.obligations = [...this.obligations, obligation];
     }
     this.autonomy = recomputeLevel(this.autonomy, this.confidence());
     return extracted;
@@ -182,6 +185,11 @@ export class Treasurer {
 
   async runCycle(): Promise<readonly Decision[]> {
     this.cycle += 1;
+    const nowIso = this.now().toISOString();
+    for (const a of this.approvals.filter((x) => x.status === 'pending' && x.expiresAt < nowIso)) {
+      this.setApproval(a.id, 'expired');
+      this.log('approval', `Approval expired with its FX quote: ${a.title}. Re-planning.`, { approval: a.id });
+    }
     await this.observe();
     const confidence = this.confidence();
     this.log('observe', `Operating cash ${this.mandate.baseCurrency} ${totalBase(this.operatingBalances(), this.rates).toLocaleString('en-US')} · reserve ${this.reserveBase.toLocaleString('en-US')} · forecast confidence ${(confidence * 100).toFixed(0)}% · ${['L0', 'L1', 'L2'][this.autonomy.level]} envelope ${this.envelope().toLocaleString('en-US')}`);
@@ -342,7 +350,9 @@ export class Treasurer {
     const decision = this.decisions.find((d) => d.id === approval.decisionId);
     const o = this.obligations.find((x) => x.id === approval.obligationId);
     if (!decision || !o) return { ok: false, reason: 'decision or obligation missing' };
-    if (decision.rule === 'BANK_DETAILS_CHANGED' || decision.rule === 'BENEFICIARY_NOT_ON_MANDATE') {
+    if (o.status !== 'open' && o.status !== 'failed') return { ok: false, reason: `obligation is ${o.status}` };
+    const payeeBlocked = this.flagged.has(o.beneficiaryId) || o.bankDetailsChanged || !this.mandate.approvedBeneficiaryIds.includes(o.beneficiaryId);
+    if (payeeBlocked || decision.rule === 'BANK_DETAILS_CHANGED' || decision.rule === 'BENEFICIARY_NOT_ON_MANDATE') {
       this.setApproval(approvalId, 'rejected');
       this.updateObligation(o.id, { status: 'blocked' });
       return { ok: false, reason: 'Mandate blocks this payee. Verify out of band and amend the mandate; one click cannot override it.' };

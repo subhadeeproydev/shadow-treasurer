@@ -28,7 +28,7 @@ npm start            # http://127.0.0.1:4747
 Click the five demo steps in order, then use the approval inbox and **Run 50 scenarios**.
 
 ```bash
-npm test             # 24 tests: policy, autonomy, approvals, reconciliation, webhooks, full demo, Gauntlet
+npm test             # 26 tests: policy, autonomy, approvals, reconciliation, webhooks, full demo, Gauntlet
 npm run typecheck    # strict TypeScript
 npm run gauntlet     # 50 seeded chaos scenarios with pass criteria (exit code 1 on any failure)
 npm run demo:cli     # the whole demo in the terminal, with the audit trail
@@ -132,6 +132,8 @@ Airwallex has no separate reserve product, so the **reserve bucket is an earmark
 - **Idempotency:** every conversion and transfer carries a deterministic `request_id` (`st-pay-<obligation>-a<attempt>`). Uncertain outcomes (timeouts, 5xx) are **looked up by `request_id`, never retried blindly**.
 - **Approvals are bound** to amount, currency, payee, FX quote id, reserve recall and an evidence hash (SHA-256), expire with the quote, and **re-check the floor at execution**.
 - **Webhooks** are verified with HMAC-SHA256 over `timestamp + body`, a 5-minute freshness window, constant-time comparison and event-id dedupe.
+- **Emailed invoices never auto-pay** and are de-duplicated by payee, currency and amount; an approval also re-checks at execution that the payee is still on the mandate and not flagged.
+- **The local API refuses cross-origin and non-JSON writes** and checks the Host header (CSRF and DNS-rebinding guard); binding hashes include a per-process secret salt; webhook reconciliation runs under the same lock as cycles.
 - **Reconciliation** counts an action as done only when the financial transactions show it settled with a matching amount. A mismatch is a break that revokes autonomy.
 
 ---

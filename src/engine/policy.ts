@@ -51,8 +51,9 @@ const mkDecision = (input: PolicyInput, o: Obligation | null, partial: Omit<Deci
   };
 };
 
+/** Invoices that arrived only by email never auto-pay: a human confirms the first payment. */
 const canAutoExecute = (input: PolicyInput, amountBase: number, obligation: Obligation): boolean =>
-  input.level > 0 && amountBase <= input.envelopeBase && !obligation.retryNeedsApproval;
+  input.level > 0 && amountBase <= input.envelopeBase && !obligation.retryNeedsApproval && obligation.source !== 'evidence';
 
 const escalate = (input: PolicyInput, o: Obligation, amountBase: number, rule: string, reason: string, recallBase = 0): Decision =>
   mkDecision(input, o, {
@@ -129,7 +130,9 @@ const decideObligation = (input: PolicyInput, run: Running, o: Obligation): Runn
       ? 'A previous attempt failed and its refund is reconciled; one retry needs a human and goes out with a new request_id.'
       : input.level === 0
         ? 'Shadow mode: proposal only, scored against what actually settles.'
-        : `${fmt(amountBase, base(input))} is above the current autonomy envelope of ${fmt(input.envelopeBase, base(input))}.`;
+        : o.source === 'evidence'
+          ? 'This invoice arrived only by email; the first payment to it needs a human.'
+          : `${fmt(amountBase, base(input))} is above the current autonomy envelope of ${fmt(input.envelopeBase, base(input))}.`;
     if (input.level === 0 && !o.retryNeedsApproval) {
       const shadow = mkDecision(input, o, {
         obligationId: o.id, action: 'FUND', rule: 'SHADOW_PROPOSAL', reason: `Would pay ${o.description}. ${why}`,
@@ -138,7 +141,7 @@ const decideObligation = (input: PolicyInput, run: Running, o: Obligation): Runn
       });
       return push(shadow);
     }
-    return push(escalate(input, o, amountBase, o.retryNeedsApproval ? 'RETRY_NEEDS_APPROVAL' : 'ABOVE_ENVELOPE', `${o.description}: ${why}`));
+    return push(escalate(input, o, amountBase, o.retryNeedsApproval ? 'RETRY_NEEDS_APPROVAL' : o.source === 'evidence' ? 'EMAILED_INVOICE' : 'ABOVE_ENVELOPE', `${o.description}: ${why}`));
   }
 
   const decisions: Decision[] = [];

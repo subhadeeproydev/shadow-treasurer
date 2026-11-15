@@ -63,3 +63,27 @@ test('gauntlet: 50 seeded scenarios all pass', async () => {
   assert.equal(r.totals.duplicatePayouts, 0);
   assert.equal(r.totals.reconciledPct, 100);
 });
+
+test('a payee flagged after a card was issued cannot be paid by approving that card', async () => {
+  let rt = createDemo(rulesExtractor);
+  for (const s of ['earn', 'plan', 'late']) rt = await runStep(rt, s);
+  const t = rt.treasurer;
+  const card = t.snapshot().approvals.find((a) => a.obligationId === 'ob-rossi' && a.status === 'pending')!;
+  await t.ingestEvidence({ id: 'ev-rossi-bank', kind: 'email', from: 'Atelier Rossi <ar@atelierrossi-pay.it>', subject: 'New bank details', body: 'Please note our new bank details for all future payments.', receivedAt: new Date().toISOString() });
+  const res = await t.approve(card.id, card.bindingHash);
+  assert.equal(res.ok, false);
+  assert.notEqual(t.snapshot().obligations.find((o) => o.id === 'ob-rossi')!.status, 'paid');
+});
+
+test('the same emailed invoice twice creates one obligation, and it never auto-pays', async () => {
+  let rt = createDemo(rulesExtractor);
+  for (const s of ['earn', 'plan']) rt = await runStep(rt, s);
+  const t = rt.treasurer;
+  const doc = (id: string) => ({ id, kind: 'email' as const, from: 'Nimbus Cloud Billing <billing@nimbuscloud.com>', subject: 'Invoice NC-1', body: 'Kindly settle USD 2,000 for overage.', receivedAt: new Date().toISOString() });
+  await t.ingestEvidence(doc('ev-a'));
+  await t.ingestEvidence(doc('ev-b'));
+  const fromEmail = t.snapshot().obligations.filter((o) => o.source === 'evidence');
+  assert.equal(fromEmail.length, 1);
+  await t.runCycle();
+  assert.notEqual(t.snapshot().obligations.find((o) => o.source === 'evidence')!.status, 'paid');
+});

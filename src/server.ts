@@ -90,6 +90,16 @@ const route = async (req: IncomingMessage, res: ServerResponse): Promise<void> =
   const path = url.pathname;
   const method = req.method ?? 'GET';
 
+  // CSRF / DNS-rebinding guard for every state-changing request to the dashboard API.
+  if (method !== 'GET' && path.startsWith('/api')) {
+    const host = req.headers.host ?? '';
+    const allowedHosts = [`127.0.0.1:${PORT}`, `localhost:${PORT}`, `${HOST}:${PORT}`];
+    const origin = req.headers.origin;
+    if (!allowedHosts.includes(host)) return send(res, 403, { success: false, error: 'bad host' });
+    if (origin && !allowedHosts.some((h) => origin === `http://${h}`)) return send(res, 403, { success: false, error: 'cross-origin request refused' });
+    if (!(req.headers['content-type'] ?? '').startsWith('application/json')) return send(res, 415, { success: false, error: 'content-type must be application/json' });
+  }
+
   if (method === 'GET' && path === '/api/state') return send(res, 200, state());
   if (method === 'GET' && !path.startsWith('/api') && !path.startsWith('/webhooks')) return serveStatic(res, path);
 
@@ -130,8 +140,10 @@ const route = async (req: IncomingMessage, res: ServerResponse): Promise<void> =
     const raw = await readBody(req);
     const result = webhooks.receive(raw, req.headers['x-timestamp'] as string | undefined, req.headers['x-signature'] as string | undefined);
     if (result.status === 'rejected') return send(res, 401, { success: false, error: result.reason });
-    if (result.status === 'accepted') await runtime.treasurer.settleAndReconcile();
-    return send(res, 200, { success: true, data: result });
+    if (result.status === 'duplicate') return send(res, 200, { success: true, data: result });
+    // Reconcile under the same lock as cycles and approvals so concurrent runs can't drop executed actions.
+    if (busy) return send(res, 503, { success: false, error: 'busy; Airwallex will redeliver' });
+    return exclusive(res, () => runtime.treasurer.settleAndReconcile());
   }
 
   send(res, 404, { success: false, error: 'not found' });
